@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — DataPilot AI</title>
+  <link rel="icon" href="/Images/DataPilot AI Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="dashboard-page">
+  <nav class="navbar" id="navbar"></nav>
+
+  <main class="workspace">
+    <!-- Empty state (no dataset) -->
+    <section id="noData" class="empty-state hidden">
+      <div class="big-ico"><i data-lucide="database" style="width:56px;height:56px;"></i></div>
+      <h3>No dataset loaded</h3>
+      <p>Import and clean a dataset in the Editor first.</p>
+      <a href="/editor.html" class="btn btn-primary" style="margin-top:18px;"><i data-lucide="upload"></i> Go to Editor</a>
+    </section>
+
+    <section id="dashArea" class="hidden">
+      <div class="ws-head">
+        <div class="ws-title">
+          <h2 class="gradient-text">Dashboard Studio</h2>
+          <span class="file-pill"><i data-lucide="file" style="width:14px"></i> <span id="fileName"></span></span>
+        </div>
+        <div class="dash-toolbar" style="margin:0;">
+          <button class="btn btn-sm" id="addPivotBtn"><i data-lucide="table-2"></i> Pivot</button>
+          <button class="btn btn-sm" id="addGeoBtn"><i data-lucide="globe"></i> Geo</button>
+          <button class="btn btn-sm" id="insightCardsBtn"><i data-lucide="sparkles"></i> AI Insights</button>
+          <button class="btn btn-sm" id="autoBuildBtn"><i data-lucide="wand-2"></i> Auto-build</button>
+          <button class="btn btn-sm" id="clearBtn"><i data-lucide="trash-2"></i> Clear</button>
+          <button class="btn btn-sm" id="refreshBtn"><i data-lucide="timer-reset"></i> Auto-refresh</button>
+          <button class="btn btn-sm" id="shareBtn"><i data-lucide="share-2"></i> Share</button>
+          <button class="btn btn-sm" id="embedBtn"><i data-lucide="code-2"></i> Embed</button>
+          <button class="btn btn-sm" id="exportPngBtn"><i data-lucide="image"></i> PNG</button>
+          <button class="btn btn-sm" id="exportPptxBtn"><i data-lucide="presentation"></i> PPTX</button>
+          <button class="btn btn-primary btn-sm" id="exportPdfBtn"><i data-lucide="file-down"></i> PDF</button>
+        </div>
+      </div>
+
+      <!-- Active drill-down filters -->
+      <div id="drillBar" class="drill-bar hidden"></div>
+
+      <!-- Recommendations -->
+      <details class="panel neo" id="recPanel">
+        <summary>Recommended charts for your data</summary>
+        <p class="muted" style="font-size:.82rem; margin:10px 0;">DataPilot analysed your dataset and ranked the most suitable visualisations. Click one to add it.</p>
+        <div class="rec-grid" id="recGrid"></div>
+      </details>
+
+      <!-- ============ Studio shell: view rail | canvas | side panes ============ -->
+      <div class="studio">
+        <!-- Dashboard / Table view switcher -->
+        <div class="studio-rail" id="viewRail">
+          <button class="rail-btn active" data-view="dashboard" title="Dashboard view">
+            <i data-lucide="bar-chart-3" style="width:19px"></i>
+          </button>
+          <button class="rail-btn" data-view="table" title="Table view">
+            <i data-lucide="table-2" style="width:19px"></i>
+          </button>
+        </div>
+
+        <div class="studio-main">
+          <!-- Export root: everything inside is captured in PNG / PDF exports -->
+          <div id="exportRoot">
+            <!-- Your dataset's own logo — shown top-left, included in every export -->
+            <div class="dash-logo-bar" id="dashLogoBar">
+              <img id="dashLogoImg" class="dash-logo-img hidden" alt="Dataset logo" />
+              <label class="dash-logo-upload" id="dashLogoUploadLabel">
+                <input type="file" id="logoInput" accept="image/png,image/jpeg" class="hidden" />
+                <i data-lucide="image-plus" style="width:16px"></i> Add logo
+              </label>
+              <button class="btn btn-icon btn-sm hidden" id="logoRemoveBtn" title="Remove logo"><i data-lucide="x" style="width:14px"></i></button>
+            </div>
+
+            <div id="exportWatermark"><img src="/Images/DataPilot AI Logo.png" alt="" /></div>
+            <div id="exportHeader">
+              <img src="/Images/DataPilot AI Logo.png" alt="DataPilot AI" />
+              <div>
+                <h2 id="exportTitle">Dashboard</h2>
+                <span id="exportSub"></span>
+              </div>
+            </div>
+
+            <!-- KPIs -->
+            <div class="dash-grid" id="kpiRow"></div>
+
+            <!-- Wallpaper sits behind the canvas background -->
+            <div id="dashWallpaper">
+              <div id="wallpaperBackground" class="page-background" aria-hidden="true"></div>
+              <div id="dashCanvas">
+                <div id="canvasBackground" class="page-background" aria-hidden="true"></div>
+                <div class="dash-grid" id="dashGrid"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table view of the imported data -->
+          <div id="tableView" class="hidden">
+            <div class="panel neo">
+              <div class="tv-head">
+                <h3><i data-lucide="table-2" style="width:18px"></i> Table view</h3>
+                <span class="muted" id="tvMeta" style="font-size:.82rem;"></span>
+              </div>
+              <div class="table-wrap tv-wrap">
+                <table class="data" id="tvTable"><thead></thead><tbody></tbody></table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Canvas zoom control -->
+          <div class="canvas-zoombar neo" id="zoomBar">
+            <button class="zoom-btn" id="zoomOut" title="Zoom out"><i data-lucide="minus" style="width:14px"></i></button>
+            <input type="range" id="zoomSlider" min="10" max="200" step="5" value="100" title="Zoom" />
+            <button class="zoom-btn" id="zoomIn" title="Zoom in"><i data-lucide="plus" style="width:14px"></i></button>
+            <span class="zoom-pct" id="zoomPct">100%</span>
+            <button class="zoom-btn" id="zoomFit" title="Fit to page"><i data-lucide="scan" style="width:14px"></i></button>
+            <button class="zoom-btn" id="zoomReset" title="Reset to 100%"><i data-lucide="rotate-ccw" style="width:13px"></i></button>
+          </div>
+        </div>
+
+        <!-- ============ Visualizations pane ============ -->
+        <aside class="studio-pane neo" id="vizPane">
+          <div class="pane-head">
+            <h4>Visualizations</h4>
+            <button class="pane-collapse" id="vizPaneToggle" title="Collapse"><i data-lucide="chevrons-right" style="width:16px"></i></button>
+          </div>
+
+          <div class="pane-tabs">
+            <button class="pane-tab active" data-tab="build" title="Build visual">
+              <i data-lucide="bar-chart-3" style="width:16px"></i>
+            </button>
+            <button class="pane-tab" data-tab="format" title="Format page">
+              <i data-lucide="paintbrush" style="width:16px"></i>
+            </button>
+          </div>
+
+          <!-- ---- Build visual ---- -->
+          <div class="pane-body" id="tabBuild">
+            <span class="pane-label">Build visual</span>
+            <div class="viz-gallery" id="vizGallery"></div>
+
+            <div id="wellsArea">
+              <div class="well-group" data-well="x">
+                <span class="pane-label">X-axis</span>
+                <div class="well" data-well-drop="x"><span class="well-hint">Add data fields here</span></div>
+              </div>
+              <div class="well-group" data-well="y">
+                <span class="pane-label">Y-axis</span>
+                <div class="well" data-well-drop="y"><span class="well-hint">Add data fields here</span></div>
+              </div>
+              <div class="well-group" data-well="series">
+                <span class="pane-label">Legend (series)</span>
+                <div class="well" data-well-drop="series"><span class="well-hint">Add data fields here</span></div>
+              </div>
+              <div class="well-group" data-well="y2">
+                <span class="pane-label">Secondary y-axis</span>
+                <div class="well" data-well-drop="y2"><span class="well-hint">Add data fields here</span></div>
+              </div>
+              <div class="well-group" data-well="field">
+                <span class="pane-label">Field</span>
+                <div class="well" data-well-drop="field"><span class="well-hint">Add data fields here</span></div>
+              </div>
+
+              <div class="field" id="vizAggField">
+                <label>Aggregation</label>
+                <select id="vizAgg">
+                  <option value="count">Count</option>
+                  <option value="sum">Sum</option>
+                  <option value="mean">Average</option>
+                  <option value="max">Max</option>
+                  <option value="min">Min</option>
+                  <option value="median">Median</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Title</label>
+                <input type="text" id="vizTitle" placeholder="Visual title" />
+              </div>
+              <div class="field hidden" id="vizGoalField">
+                <label>Goal (optional)</label>
+                <input type="number" id="vizGoal" placeholder="e.g. 10000" />
+              </div>
+              <div class="field hidden" id="vizImageField">
+                <label>Image</label>
+                <input type="file" id="vizImageInput" accept="image/png,image/jpeg" />
+              </div>
+
+              <button class="btn btn-primary btn-sm" id="vizAddBtn" style="width:100%; justify-content:center;">
+                <i data-lucide="plus" style="width:15px"></i> <span id="vizAddLabel">Add to dashboard</span>
+              </button>
+              <button class="btn btn-sm hidden" id="vizCancelEditBtn" style="width:100%; justify-content:center; margin-top:8px;">
+                Cancel edit
+              </button>
+            </div>
+          </div>
+
+          <!-- ---- Format page ---- -->
+          <div class="pane-body hidden" id="tabFormat">
+            <span class="pane-label">Format page</span>
+
+            <details class="fmt-group" open>
+              <summary>Canvas settings</summary>
+              <div class="field">
+                <label>Type</label>
+                <select id="cvType">
+                  <option value="16:9">16:9</option>
+                  <option value="4:3">4:3</option>
+                  <option value="letter">Letter</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label>Width (px)</label>
+                  <input type="number" id="cvWidth" value="1280" min="320" max="7680" step="1" />
+                </div>
+                <div class="field">
+                  <label>Height (px)</label>
+                  <input type="number" id="cvHeight" value="720" min="180" max="7680" step="1" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Vertical alignment</label>
+                <select id="cvAlign">
+                  <option value="top">Top</option>
+                  <option value="middle">Middle</option>
+                </select>
+              </div>
+              <button class="btn btn-sm fmt-reset" id="cvReset"><i data-lucide="rotate-ccw" style="width:14px"></i> Reset to default</button>
+            </details>
+
+            <details class="fmt-group">
+              <summary>Canvas background</summary>
+              <div class="field">
+                <label>Color</label>
+                <input type="color" id="cbColor" value="#ffffff" />
+              </div>
+              <div class="field">
+                <label>Image</label>
+                <input type="file" id="cbImage" accept="image/png,image/jpeg" aria-describedby="cbImageStatus" />
+                <p class="background-image-status muted" id="cbImageStatus" role="status"></p>
+                <img id="cbImagePreview" class="background-image-preview hidden" alt="Canvas background preview" />
+              </div>
+              <div class="field">
+                <label>Image fit</label>
+                <select id="cbFit">
+                  <option value="fit">Fit</option>
+                  <option value="stretch">Stretch</option>
+                  <option value="fill">Fill</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Transparency (<span id="cbTransVal">0</span>%)</label>
+                <input type="range" id="cbTrans" min="0" max="100" value="0" />
+              </div>
+              <button class="btn btn-sm fmt-reset" id="cbReset"><i data-lucide="rotate-ccw" style="width:14px"></i> Reset to default</button>
+            </details>
+
+            <details class="fmt-group">
+              <summary>Wallpaper</summary>
+              <p class="muted" style="font-size:.76rem; margin:-2px 0 10px;">Sits behind the canvas. Increase Canvas background transparency to see wallpaper through it.</p>
+              <div class="field">
+                <label>Color</label>
+                <input type="color" id="wpColor" value="#eef1f7" />
+              </div>
+              <div class="field">
+                <label>Image</label>
+                <input type="file" id="wpImage" accept="image/png,image/jpeg" aria-describedby="wpImageStatus" />
+                <p class="background-image-status muted" id="wpImageStatus" role="status"></p>
+                <img id="wpImagePreview" class="background-image-preview hidden" alt="Wallpaper preview" />
+              </div>
+              <div class="field">
+                <label>Image fit</label>
+                <select id="wpFit">
+                  <option value="fit">Fit</option>
+                  <option value="stretch">Stretch</option>
+                  <option value="fill">Fill</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Transparency (<span id="wpTransVal">0</span>%)</label>
+                <input type="range" id="wpTrans" min="0" max="100" value="0" />
+              </div>
+              <button class="btn btn-sm fmt-reset" id="wpReset"><i data-lucide="rotate-ccw" style="width:14px"></i> Reset to default</button>
+            </details>
+
+            <details class="fmt-group" id="chartBackgroundGroup">
+              <summary>Chart backgrounds</summary>
+              <p class="chart-background-hint muted">Turn off a card's background to show the canvas behind it. Charts and labels stay visible.</p>
+              <div id="chartBackgroundList"></div>
+            </details>
+          </div>
+        </aside>
+
+        <!-- ============ Data pane ============ -->
+        <aside class="studio-pane neo" id="dataPane">
+          <div class="pane-head">
+            <h4>Data</h4>
+            <button class="pane-collapse" id="dataPaneToggle" title="Collapse"><i data-lucide="chevrons-right" style="width:16px"></i></button>
+          </div>
+          <div class="pane-body">
+            <div class="data-search">
+              <i data-lucide="search" style="width:14px"></i>
+              <input type="text" id="dataSearch" placeholder="Search" />
+            </div>
+            <div class="data-tree">
+              <button class="data-table-node" id="dataTableNode" aria-expanded="true">
+                <i data-lucide="chevron-down" style="width:14px" class="dt-chevron"></i>
+                <i data-lucide="database" style="width:14px" class="ds-icon"></i>
+                <span id="dataSetName">Dataset</span>
+              </button>
+              <div class="data-col-list" id="dataColList"></div>
+            </div>
+            <p class="muted" style="font-size:.74rem; margin-top:12px; line-height:1.5;">
+              Tick a column to place it in the next empty well, or drag it straight onto X-axis / Y-axis.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <!-- Chart builder modal -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal neo">
+      <h3><i data-lucide="bar-chart-3" style="width:20px"></i> Add a chart</h3>
+      <div class="field">
+        <label>Chart type</label>
+        <select id="mType">
+          <option value="bar">Bar</option>
+          <option value="line">Line</option>
+          <option value="pie">Pie</option>
+          <option value="doughnut">Doughnut</option>
+          <option value="scatter">Scatter</option>
+          <option value="histogram">Histogram</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label id="xLabel">Category / X axis</label>
+          <select id="mX"></select>
+        </div>
+        <div class="field">
+          <label id="yLabel">Value / Y axis</label>
+          <select id="mY"></select>
+        </div>
+      </div>
+      <div class="field" id="aggField">
+        <label>Aggregation</label>
+        <select id="mAgg">
+          <option value="count">Count</option>
+          <option value="sum">Sum</option>
+          <option value="mean">Average</option>
+          <option value="max">Max</option>
+          <option value="min">Min</option>
+          <option value="median">Median</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="mTitle" placeholder="Chart title" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="mCancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="mAdd"><i data-lucide="plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI builder modal -->
+  <div class="modal-backdrop" id="kpiModal">
+    <div class="modal neo">
+      <h3><i data-lucide="gauge" style="width:20px"></i> Add a KPI card</h3>
+      <div class="row">
+        <div class="field">
+          <label>Column</label>
+          <select id="kCol"></select>
+        </div>
+        <div class="field">
+          <label>Aggregation</label>
+          <select id="kAgg">
+            <option value="sum">Sum</option>
+            <option value="mean">Average</option>
+            <option value="min">Min</option>
+            <option value="max">Max</option>
+            <option value="median">Median</option>
+            <option value="count">Count (non-null)</option>
+            <option value="distinct">Distinct values</option>
+            <option value="count_rows">Row count</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Label</label>
+        <input type="text" id="kTitle" placeholder="e.g. Total revenue" />
+      </div>
+      <div class="field">
+        <label>Goal target (optional — shows a progress ring)</label>
+        <input type="number" id="kGoal" placeholder="e.g. 100000" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="kCancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="kAdd"><i data-lucide="plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Geo widget modal -->
+  <div class="modal-backdrop" id="geoModal">
+    <div class="modal neo">
+      <h3><i data-lucide="globe" style="width:20px"></i> Add geo distribution</h3>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">Ranks regions/countries/states by value — a lightweight alternative to a map when offline map tiles aren't available.</p>
+      <div class="field">
+        <label>Region column</label>
+        <select id="gCol"></select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Value column (optional)</label>
+          <select id="gVal"></select>
+        </div>
+        <div class="field">
+          <label>Aggregation</label>
+          <select id="gAgg">
+            <option value="count">Count</option>
+            <option value="sum">Sum</option>
+            <option value="mean">Average</option>
+            <option value="max">Max</option>
+            <option value="min">Min</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="gTitle" placeholder="Geo distribution" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="gCancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="gAdd"><i data-lucide="plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Insight cards modal -->
+  <div class="modal-backdrop" id="insightModal">
+    <div class="modal neo" style="max-width:600px;">
+      <h3><i data-lucide="sparkles" style="width:20px"></i> Auto-insight cards</h3>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">One-click add anomalies, outliers &amp; trends detected in your data as dashboard cards.</p>
+      <div id="insightModalList" class="scroll-list"></div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="insightModalCancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-refresh modal -->
+  <div class="modal-backdrop" id="refreshModal">
+    <div class="modal neo">
+      <h3><i data-lucide="timer-reset" style="width:20px"></i> Scheduled auto-refresh</h3>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">Periodically re-fetch a CSV/Excel URL and refresh the whole dashboard.</p>
+      <div class="field">
+        <label>Source URL (.csv / .xlsx)</label>
+        <input type="text" id="refreshUrl" placeholder="https://example.com/data.csv" />
+      </div>
+      <div class="field">
+        <label>Refresh interval (seconds)</label>
+        <input type="number" id="refreshInterval" value="60" min="10" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="refreshStop">Stop</button>
+        <button class="btn btn-sm" id="refreshCancel">Close</button>
+        <button class="btn btn-primary btn-sm" id="refreshStart"><i data-lucide="play"></i> Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share modal -->
+  <div class="modal-backdrop" id="shareModal">
+    <div class="modal neo">
+      <h3><i data-lucide="share-2" style="width:20px"></i> Share this dashboard</h3>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">Anyone with this link sees the same dataset &amp; session — no re-upload needed.</p>
+      <div class="field">
+        <input type="text" id="shareLink" readonly />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="shareCancel">Close</button>
+        <button class="btn btn-primary btn-sm" id="shareCopy"><i data-lucide="copy"></i> Copy link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Embed modal -->
+  <div class="modal-backdrop" id="embedModal">
+    <div class="modal neo" style="max-width:640px;">
+      <h3><i data-lucide="code-2" style="width:20px"></i> Embed this dashboard</h3>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">Paste this snippet into any page to embed a read-only, toolbar-free view.</p>
+      <div class="field">
+        <textarea id="embedSnippet" readonly rows="4" style="width:100%; resize:vertical;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="embedCancel">Close</button>
+        <button class="btn btn-primary btn-sm" id="embedCopy"><i data-lucide="copy"></i> Copy snippet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slicer builder modal -->
+  <div class="modal-backdrop" id="slicerModal">
+    <div class="modal neo">
+      <h3><i data-lucide="filter" style="width:20px"></i> Add a slicer</h3>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">A slicer filters every chart, KPI and pivot table on the dashboard.</p>
+      <div class="field">
+        <label>Column to filter by</label>
+        <select id="sCol"></select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="sCancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="sAdd"><i data-lucide="plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pivot builder modal -->
+  <div class="modal-backdrop" id="pivotModal">
+    <div class="modal neo">
+      <h3><i data-lucide="table-2" style="width:20px"></i> Add a pivot table</h3>
+      <div class="row">
+        <div class="field">
+          <label>Rows (index)</label>
+          <select id="pIndex"></select>
+        </div>
+        <div class="field">
+          <label>Columns (optional)</label>
+          <select id="pCols"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Values (numeric, optional)</label>
+          <select id="pVals"></select>
+        </div>
+        <div class="field">
+          <label>Aggregation</label>
+          <select id="pAgg">
+            <option value="count">Count</option>
+            <option value="sum">Sum</option>
+            <option value="mean">Average</option>
+            <option value="max">Max</option>
+            <option value="min">Min</option>
+            <option value="median">Median</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="pTitle" placeholder="Pivot table title" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="pCancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="pAdd"><i data-lucide="plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/visuals.js"></script>
+  <script src="/js/dashboard.js"></script>
+  <script>renderNavbar("dashboard");</script>
+</body>
+</html>

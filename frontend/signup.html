@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign up — DataPilot AI</title>
+  <link rel="icon" href="/Images/DataPilot AI Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <section class="section">
+    <div class="container" style="max-width:420px;">
+      <div class="neo auth-card" id="signupCard">
+        <div class="center" style="margin-bottom:22px;">
+          <img src="/Images/DataPilot AI Logo.png" alt="DataPilot AI" style="height:56px;" />
+          <h2 style="margin-top:14px;">Create your account</h2>
+          <p class="muted" style="font-size:.88rem;">Sign up with your Gmail address, or continue with Google.</p>
+        </div>
+
+        <div id="authAlert" class="hidden" style="margin-bottom:16px;"></div>
+
+        <a href="/api/auth/google/login" id="googleBtn" class="btn" style="width:100%; justify-content:center; margin-bottom:16px;">
+          <i data-lucide="chrome" style="width:18px"></i> Continue with Google
+        </a>
+        <div class="auth-divider"><span>or sign up with email</span></div>
+
+        <form id="signupForm">
+          <div class="field">
+            <label>Full name</label>
+            <input type="text" id="suName" placeholder="Jane Doe" />
+          </div>
+          <div class="field">
+            <label>Gmail address</label>
+            <input type="email" id="suEmail" placeholder="you@gmail.com" required />
+          </div>
+          <div class="field">
+            <label>Create a password</label>
+            <input type="password" id="suPassword" placeholder="At least 6 characters" required minlength="6" />
+          </div>
+          <div class="field">
+            <label>Confirm password</label>
+            <input type="password" id="suPassword2" placeholder="Re-enter password" required minlength="6" />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+            <i data-lucide="user-plus" style="width:16px"></i> Create account
+          </button>
+        </form>
+
+        <p class="muted center" style="font-size:.85rem; margin-top:18px;">
+          Already have an account? <a href="/login.html" style="color:var(--accent); font-weight:600;">Log in</a>
+        </p>
+      </div>
+
+      <!-- Shown after successful signup -->
+      <div class="neo auth-card hidden" id="verifyCard">
+        <div class="center">
+          <i data-lucide="mail-check" style="width:48px;color:var(--accent);margin-bottom:14px;"></i>
+          <h3>Check your inbox</h3>
+          <p class="muted" style="font-size:.9rem; margin:10px 0 18px;" id="verifyMsg"></p>
+          <div id="devLinkBox" class="hidden" style="margin-bottom:16px;"></div>
+          <button class="btn btn-sm" id="resendBtn">Resend verification email</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    renderNavbar("signup");
+    const alertBox = document.getElementById("authAlert");
+    initGoogleButton(document.getElementById("googleBtn"), alertBox);
+    let signupEmail = "";
+
+    document.getElementById("signupForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("suName").value.trim();
+      const email = document.getElementById("suEmail").value.trim();
+      const p1 = document.getElementById("suPassword").value;
+      const p2 = document.getElementById("suPassword2").value;
+      if (p1 !== p2) return showAuthAlert(alertBox, "Passwords do not match.", "err");
+      try {
+        const data = await api("/api/auth/signup", { method: "POST", body: { name, email, password: p1 } });
+        signupEmail = email;
+        document.getElementById("signupCard").classList.add("hidden");
+        document.getElementById("verifyCard").classList.remove("hidden");
+        document.getElementById("verifyMsg").textContent = `We sent a verification link to ${email}. Click it, then log in.`;
+        if (data.dev_verify_link) {
+          document.getElementById("devLinkBox").classList.remove("hidden");
+          document.getElementById("devLinkBox").innerHTML =
+            `<span class="chip">Dev mode (no SMTP configured)</span><br/><a href="${data.dev_verify_link}" style="word-break:break-all;color:var(--accent);">${data.dev_verify_link}</a>`;
+        }
+        lucide.createIcons();
+      } catch (err) {
+        showAuthAlert(alertBox, err.message, "err");
+      }
+    });
+
+    document.getElementById("resendBtn").addEventListener("click", async () => {
+      try {
+        const data = await api("/api/auth/resend-verification", { method: "POST", body: { email: signupEmail } });
+        toast(data.message);
+        if (data.dev_verify_link) {
+          document.getElementById("devLinkBox").classList.remove("hidden");
+          document.getElementById("devLinkBox").innerHTML =
+            `<span class="chip">Dev mode (no SMTP configured)</span><br/><a href="${data.dev_verify_link}" style="word-break:break-all;color:var(--accent);">${data.dev_verify_link}</a>`;
+        }
+      } catch (err) { toast(err.message, "err"); }
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>

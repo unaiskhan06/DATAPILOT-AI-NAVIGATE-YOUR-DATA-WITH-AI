@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+backend/users.db
+
+# Generated / temporary
+_server*.log*
+_dashboard_check.png
+_auth_recording_frames/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.agents/

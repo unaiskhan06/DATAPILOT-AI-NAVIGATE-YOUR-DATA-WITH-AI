@@ -1,0 +1,39 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# After pushing this to GitHub, go to:
+#   Dashboard → New + → Blueprint → pick this repo
+# Render will read this file and create the web service for you.
+services:
+  - type: web
+    name: datapilot-ai
+    runtime: python
+    # Python 3.11 LTS — matches the local .venv major version.
+    pythonVersion: "3.11"
+    plan: free            # change to "starter" for no-sleep + persistent disk
+    buildCommand: pip install -r requirements.txt
+    # gunicorn serves the Flask app (app:app) from backend/ on all interfaces.
+    # IMPORTANT: --workers 1. Uploaded datasets live in the in-memory SESSIONS
+    # dict in backend/app.py, which is per-process. With 2+ workers, requests
+    # round-robin between forks, so an upload handled by worker A is invisible
+    # to worker B and chart requests intermittently fail with "No dataset
+    # loaded." Threads share memory, so use --threads for concurrency instead.
+    startCommand: gunicorn app:app --chdir backend --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      # Secret key — generate with: python -c "import secrets; print(secrets.token_hex(32))"
+      - key: APP_SECRET_KEY
+        sync: false        # set this value in the Render dashboard
+      - key: OPENAI_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: OPENAI_MODEL
+        value: openai/gpt-oss-120b
+      - key: OPENAI_API_KEY
+        sync: false        # set your Groq key in the Render dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false        # set in the dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false        # set in the dashboard
+      # After the service is created, Render shows its public URL.
+      # Use that URL here (and add the matching redirect URI in Google Cloud Console).
+      - key: GOOGLE_REDIRECT_URI
+        sync: false

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Profile — DataPilot AI</title>
+  <link rel="icon" href="/Images/DataPilot AI Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <section class="section">
+    <div class="container" style="max-width:480px;">
+      <div class="neo auth-card" id="profileCard">
+        <div class="center" style="margin-bottom:6px;">
+          <img id="profileAvatar" class="profile-avatar" src="" alt="" />
+          <h2 id="profileName" style="margin-top:14px;"></h2>
+          <p class="muted" id="profileEmail" style="font-size:.9rem;"></p>
+          <span class="chip" id="profileProvider" style="margin-top:10px;"></span>
+        </div>
+
+        <div class="field" style="margin-top:26px;">
+          <label>Account</label>
+          <div class="profile-row"><span>Email</span><span id="rowEmail" class="muted"></span></div>
+          <div class="profile-row"><span>Sign-in method</span><span id="rowProvider" class="muted"></span></div>
+        </div>
+
+        <button class="btn btn-danger" id="logoutBtn" style="width:100%; justify-content:center; margin-top:24px;">
+          <i data-lucide="log-out" style="width:16px"></i> Log out
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    renderNavbar("profile");
+
+    (async function initProfile() {
+      try {
+        const data = await api("/api/auth/me");
+        const u = data.user;
+        document.getElementById("profileName").textContent = u.name || u.email;
+        document.getElementById("profileEmail").textContent = u.email;
+        document.getElementById("rowEmail").textContent = u.email;
+        document.getElementById("rowProvider").textContent = u.provider === "google" ? "Google" : "Email & password";
+        document.getElementById("profileProvider").textContent = u.provider === "google" ? "Signed in with Google" : "Signed in with email";
+        const avatar = document.getElementById("profileAvatar");
+        if (u.avatar) {
+          avatar.src = u.avatar;
+        } else {
+          avatar.src = `https://ui-avatars.com/api/?background=3b7df6&color=fff&name=${encodeURIComponent(u.name || u.email)}`;
+        }
+        lucide.createIcons();
+      } catch (_) {
+        window.location.href = "/login.html";
+      }
+    })();
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try {
+        await api("/api/auth/logout", { method: "POST" });
+        toast("Logged out");
+      } catch (_) {}
+      setTimeout(() => (window.location.href = "/login.html"), 500);
+    });
+  </script>
+</body>
+</html>

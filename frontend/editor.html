@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor — DataPilot AI</title>
+  <link rel="icon" href="/Images/DataPilot AI Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <main class="workspace">
+    <!-- Upload view -->
+    <section id="uploadView">
+      <div class="ws-head">
+        <div class="ws-title">
+          <h2>Import a dataset</h2>
+        </div>
+      </div>
+      <div class="dropzone neo-in" id="dropzone">
+        <div class="big-ico"><i data-lucide="upload-cloud" style="width:56px;height:56px;"></i></div>
+        <h3>Drag &amp; drop your file here</h3>
+        <p>or click to browse — supports <strong>.csv</strong>, <strong>.xlsx</strong>, <strong>.xls</strong></p>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" />
+      </div>
+    </section>
+
+    <!-- Workspace view -->
+    <section id="editorView" class="hidden">
+      <div class="ws-head">
+        <div class="ws-title">
+          <h2 class="gradient-text">Data Workspace</h2>
+          <span class="file-pill" id="filePill"><i data-lucide="file" style="width:14px"></i> <span id="fileName"></span></span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-sm" id="undoBtn"><i data-lucide="undo-2"></i> Undo</button>
+          <button class="btn btn-sm" id="historyBtn"><i data-lucide="history"></i> History</button>
+          <button class="btn btn-sm" id="insightsBtn"><i data-lucide="sparkles"></i> AI Insights</button>
+          <button class="btn btn-sm" id="schemaBtn"><i data-lucide="wand-sparkles"></i> Schema</button>
+          <button class="btn btn-sm" id="mergeBtn"><i data-lucide="git-merge"></i> Merge data</button>
+          <button class="btn btn-sm" id="reportPdfBtn"><i data-lucide="file-text"></i> Profile PDF</button>
+          <button class="btn btn-sm" id="newFileBtn"><i data-lucide="refresh-cw"></i> New file</button>
+          <button class="btn btn-sm" id="downloadCsvBtn"><i data-lucide="download"></i> CSV</button>
+          <button class="btn btn-sm" id="downloadXlsxBtn"><i data-lucide="download"></i> Excel</button>
+          <a href="/dashboard.html" class="btn btn-primary btn-sm"><i data-lucide="layout-dashboard"></i> Build dashboard</a>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row" id="statsRow"></div>
+
+      <div class="editor-grid">
+        <!-- Left column: mode + tools -->
+        <div>
+          <div class="mode-toggle" style="margin-bottom:20px;">
+            <button id="agentModeBtn" class="active"><i data-lucide="bot" style="width:16px"></i> Agent</button>
+            <button id="editorModeBtn"><i data-lucide="sliders-horizontal" style="width:16px"></i> Editor</button>
+          </div>
+
+          <!-- Agent panel -->
+          <div class="panel neo" id="agentPanel">
+            <h3><i data-lucide="sparkles" style="width:18px"></i> AI Agent</h3>
+            <div id="aiStatus" class="chip" style="margin-bottom:12px;"></div>
+            <div class="suggestions" id="agentSuggestions">
+              <span class="chip">Remove all null rows</span>
+              <span class="chip">Remove duplicate rows</span>
+              <span class="chip">Fill missing numeric values with mean</span>
+              <span class="chip">Trim whitespace in all text columns</span>
+            </div>
+            <div class="chat">
+              <div class="chat-log" id="chatLog">
+                <div class="msg bot">Hi! Tell me how to clean your data. e.g. <em>"remove null rows and drop the id column"</em>.</div>
+              </div>
+              <div class="chat-input">
+                <input type="text" id="agentInput" placeholder="Type an instruction..." />
+                <button class="btn btn-primary btn-icon" id="agentSend"><i data-lucide="send"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editor tools panel -->
+          <div class="panel neo hidden" id="toolsPanel">
+            <h3><i data-lucide="brush-cleaning" style="width:18px"></i> Cleaning tools</h3>
+            <div class="tool-list">
+              <button class="btn btn-sm" data-op="remove_null_rows"><i data-lucide="eraser"></i> Remove null rows</button>
+              <button class="btn btn-sm" data-op="remove_null_columns"><i data-lucide="columns"></i> Remove null columns</button>
+              <button class="btn btn-sm" data-op="remove_duplicates"><i data-lucide="copy-minus"></i> Remove duplicates</button>
+              <button class="btn btn-sm" data-op="strip_whitespace"><i data-lucide="scissors"></i> Trim whitespace</button>
+            </div>
+
+            <h3 style="margin-top:22px;"><i data-lucide="wand-2" style="width:18px"></i> Column tools</h3>
+            <div class="field">
+              <label>Fill missing values</label>
+              <select id="fillCol"></select>
+              <div class="row" style="display:flex; gap:8px; margin-top:8px;">
+                <select id="fillMethod">
+                  <option value="mean">Mean</option>
+                  <option value="median">Median</option>
+                  <option value="mode">Mode</option>
+                  <option value="ffill">Forward fill</option>
+                  <option value="bfill">Backward fill</option>
+                  <option value="value">Custom value</option>
+                </select>
+                <button class="btn btn-sm btn-primary" id="fillBtn">Apply</button>
+              </div>
+              <input type="text" id="fillValue" placeholder="Custom value" class="hidden" style="margin-top:8px;" />
+            </div>
+
+            <div class="field">
+              <label>Change column type</label>
+              <select id="typeCol"></select>
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <select id="typeTo">
+                  <option value="int">Integer</option>
+                  <option value="float">Float</option>
+                  <option value="str">Text</option>
+                  <option value="datetime">Datetime</option>
+                </select>
+                <button class="btn btn-sm btn-primary" id="typeBtn">Apply</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Rename column</label>
+              <select id="renameCol"></select>
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <input type="text" id="renameTo" placeholder="New name" />
+                <button class="btn btn-sm btn-primary" id="renameBtn">Rename</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Drop column</label>
+              <div style="display:flex; gap:8px;">
+                <select id="dropCol"></select>
+                <button class="btn btn-sm btn-danger" id="dropBtn">Drop</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Sort by column</label>
+              <div style="display:flex; gap:8px;">
+                <select id="sortCol"></select>
+                <button class="btn btn-sm" id="sortAscBtn"><i data-lucide="arrow-up-narrow-wide"></i></button>
+                <button class="btn btn-sm" id="sortDescBtn"><i data-lucide="arrow-down-wide-narrow"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column: table -->
+        <div class="panel neo" style="position:relative;">
+          <div class="loading-overlay" id="tableLoading"><div class="spinner"></div></div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="margin:0;"><i data-lucide="table" style="width:18px"></i> Data preview <span class="muted" id="editHint" style="font-size:.8rem; font-weight:400;"></span></h3>
+            <span class="chip" id="rowCountChip"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="dataTable">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- History timeline modal -->
+  <div class="modal-backdrop" id="historyModal">
+    <div class="modal neo">
+      <div class="modal-head">
+        <h3><i data-lucide="history" style="width:20px"></i> Version history</h3>
+        <button class="btn btn-icon btn-sm modal-x" id="historyClose" title="Close"><i data-lucide="x" style="width:16px"></i></button>
+      </div>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">Every cleaning step, newest last. Roll back to any point.</p>
+      <div id="historyList" class="scroll-list"></div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="historyCancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Insights / Storyteller modal -->
+  <div class="modal-backdrop" id="insightsModal">
+    <div class="modal neo" style="max-width:640px;">
+      <div class="modal-head">
+        <h3><i data-lucide="sparkles" style="width:20px"></i> AI Insights &amp; Data Story</h3>
+        <button class="btn btn-icon btn-sm modal-x" id="insightsClose" title="Close"><i data-lucide="x" style="width:16px"></i></button>
+      </div>
+      <div id="storyBox" class="story-box neo-in"><span class="muted">Generating narrative…</span></div>
+      <h4 style="margin-top:16px;">Auto-detected insight cards</h4>
+      <div id="insightCards" class="scroll-list"></div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="insightsCancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schema suggestions modal -->
+  <div class="modal-backdrop" id="schemaModal">
+    <div class="modal neo" style="max-width:640px;">
+      <div class="modal-head">
+        <h3><i data-lucide="wand-sparkles" style="width:20px"></i> Schema auto-detection</h3>
+        <button class="btn btn-icon btn-sm modal-x" id="schemaClose" title="Close"><i data-lucide="x" style="width:16px"></i></button>
+      </div>
+      <p class="muted" style="font-size:.85rem; margin-bottom:14px;">Columns that look like dates, currencies, numbers, or categories.</p>
+      <div id="schemaList" class="scroll-list"></div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="schemaCancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge datasets modal -->
+  <div class="modal-backdrop" id="mergeModal">
+    <div class="modal neo" style="max-width:640px;">
+      <div class="modal-head">
+        <h3><i data-lucide="git-merge" style="width:20px"></i> Merge with another file</h3>
+        <button class="btn btn-icon btn-sm modal-x" id="mergeClose" title="Close"><i data-lucide="x" style="width:16px"></i></button>
+      </div>
+      <div class="field">
+        <label>Second dataset</label>
+        <input type="file" id="mergeFileInput" accept=".csv,.xlsx,.xls" />
+      </div>
+      <div id="mergeMatches" class="scroll-list"></div>
+      <div class="row" id="mergeKeysRow" style="display:none;">
+        <div class="field">
+          <label>Left key (this dataset)</label>
+          <select id="mergeLeft"></select>
+        </div>
+        <div class="field">
+          <label>Right key (second dataset)</label>
+          <select id="mergeRight"></select>
+        </div>
+      </div>
+      <div class="field" id="mergeHowField" style="display:none;">
+        <label>Join type</label>
+        <select id="mergeHow">
+          <option value="inner">Inner</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+          <option value="outer">Outer</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="mergeCancel">Cancel</button>
+        <button class="btn btn-primary btn-sm hidden" id="mergeApply"><i data-lucide="git-merge"></i> Merge</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/editor.js"></script>
+  <script>renderNavbar("editor");</script>
+</body>
+</html>

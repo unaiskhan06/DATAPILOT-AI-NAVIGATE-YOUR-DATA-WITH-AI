@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in — DataPilot AI</title>
+  <link rel="icon" href="/Images/DataPilot AI Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <section class="section">
+    <div class="container" style="max-width:420px;">
+      <div class="neo auth-card">
+        <div class="center" style="margin-bottom:22px;">
+          <img src="/Images/DataPilot AI Logo.png" alt="DataPilot AI" style="height:56px;" />
+          <h2 style="margin-top:14px;">Welcome back</h2>
+          <p class="muted" style="font-size:.88rem;">Log in to access your Editor &amp; Dashboard.</p>
+        </div>
+
+        <div id="authAlert" class="hidden" style="margin-bottom:16px;"></div>
+
+        <a id="googleBtn" href="/api/auth/google/login" class="btn" style="width:100%; justify-content:center; margin-bottom:16px;">
+          <i data-lucide="chrome" style="width:18px"></i> Continue with Google
+        </a>
+        <div class="auth-divider"><span>or use your email</span></div>
+
+        <form id="loginForm">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="you@example.com" required />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+            <i data-lucide="log-in" style="width:16px"></i> Log in
+          </button>
+        </form>
+
+        <p class="muted center" style="font-size:.85rem; margin-top:18px;">
+          Don't have an account? <a href="/signup.html" style="color:var(--accent); font-weight:600;">Sign up</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    renderNavbar("login");
+
+    const params = new URLSearchParams(window.location.search);
+    const alertBox = document.getElementById("authAlert");
+    if (params.get("verified") === "1") showAuthAlert(alertBox, "Email verified! You can log in now.", "ok");
+    if (params.get("error")) showAuthAlert(alertBox, params.get("error").replace(/\+/g, " "), "err");
+    initGoogleButton(document.getElementById("googleBtn"), alertBox);
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      try {
+        await api("/api/auth/login", { method: "POST", body: { email, password } });
+        window.location.href = "/editor.html";
+      } catch (err) {
+        showAuthAlert(alertBox, err.message, "err");
+      }
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>

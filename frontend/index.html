@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataPilot AI — Navigate Your Data with AI</title>
+  <link rel="icon" href="/Images/DataPilot AI Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="hero-shell">
+    <canvas class="landscape-canvas" id="landscapeBg" aria-hidden="true"></canvas>
+    <header class="container">
+      <div class="hero">
+        <div>
+          <span class="chip"><i data-lucide="sparkles" style="width:15px"></i> AI-powered data analysis</span>
+          <h1>Navigate your data <span class="gradient-text">with AI</span></h1>
+          <p class="lead">
+            Import CSV or Excel files, clean them with an AI agent or by hand, and instantly
+            build beautiful, Power BI-style dashboards — all in one neomorphic workspace.
+          </p>
+          <div class="hero-cta">
+            <a href="/editor.html" class="btn btn-primary"><i data-lucide="upload"></i> Import a dataset</a>
+            <a href="#features" class="btn"><i data-lucide="compass"></i> Explore features</a>
+          </div>
+        </div>
+        <div class="hero-art neo">
+          <img src="/Images/DataPilot AI Logo.png" alt="DataPilot AI logo" />
+        </div>
+      </div>
+    </header>
+  </div>
+
+  <!-- Features -->
+  <section class="section container" id="features">
+    <div class="section-head">
+      <h2>Everything you need to <span class="gradient-text">understand your data</span></h2>
+      <p>From messy spreadsheets to polished dashboards in minutes.</p>
+    </div>
+    <div class="features">
+      <div class="feature-card neo">
+        <div class="feature-ico"><i data-lucide="file-spreadsheet"></i></div>
+        <h3>Smart Import</h3>
+        <p>Drag & drop CSV or Excel files. DataPilot profiles every column automatically.</p>
+      </div>
+      <div class="feature-card neo">
+        <div class="feature-ico"><i data-lucide="bot"></i></div>
+        <h3>Agent Mode</h3>
+        <p>Just type “remove all null rows and drop the ID column” — the AI does the cleaning.</p>
+      </div>
+      <div class="feature-card neo">
+        <div class="feature-ico"><i data-lucide="table-2"></i></div>
+        <h3>Editor Mode</h3>
+        <p>Prefer hands-on? Edit cells, fill missing values, and transform columns manually.</p>
+      </div>
+      <div class="feature-card neo">
+        <div class="feature-ico"><i data-lucide="lightbulb"></i></div>
+        <h3>Chart Recommendations</h3>
+        <p>DataPilot analyses your dataset and suggests the most suitable charts for it.</p>
+      </div>
+      <div class="feature-card neo">
+        <div class="feature-ico"><i data-lucide="layout-dashboard"></i></div>
+        <h3>Power BI-style Dashboards</h3>
+        <p>Build interactive dashboards with KPIs, pie, bar, line, scatter & histogram charts.</p>
+      </div>
+      <div class="feature-card neo">
+        <div class="feature-ico"><i data-lucide="download"></i></div>
+        <h3>Export Anything</h3>
+        <p>Download your cleaned dataset (CSV/Excel) or export the whole dashboard as PDF/PNG.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section container">
+    <div class="section-head">
+      <h2>How it <span class="gradient-text">works</span></h2>
+      <p>Four simple steps from raw file to insight.</p>
+    </div>
+    <div class="steps">
+      <div class="step neo">
+        <div class="num gradient-text">1</div>
+        <h4>Import</h4>
+        <p>Upload your CSV or Excel dataset into the workspace.</p>
+      </div>
+      <div class="step neo">
+        <div class="num gradient-text">2</div>
+        <h4>Clean</h4>
+        <p>Use Agent or Editor mode to fix nulls, duplicates & types.</p>
+      </div>
+      <div class="step neo">
+        <div class="num gradient-text">3</div>
+        <h4>Visualise</h4>
+        <p>Accept AI chart suggestions or design your own dashboard.</p>
+      </div>
+      <div class="step neo">
+        <div class="num gradient-text">4</div>
+        <h4>Export</h4>
+        <p>Download the cleaned data and share your dashboard.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container center">
+    <div class="neo" style="padding:56px 30px;">
+      <h2>Ready to pilot your data?</h2>
+      <p class="muted" style="margin:12px 0 26px;">Start by importing a dataset — no sign-up required.</p>
+      <a href="/editor.html" class="btn btn-primary"><i data-lucide="rocket"></i> Launch the workspace</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <strong class="gradient-text">DataPilot AI</strong> — Navigate your data with AI.
+    </div>
+  </footer>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/landscape-bg.js"></script>
+  <script>renderNavbar("home"); lucide.createIcons();</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Production dependencies for DataPilot AI.
+# Render/Gunicorn read this file from the repository root.
+# The backend/requirements.txt is kept for local dev parity.
+Flask>=3.0
+Flask-Cors>=4.0
+pandas
+numpy
+openpyxl>=3.1
+xlsxwriter>=3.2
+python-dotenv>=1.0
+openai>=1.51
+reportlab>=4.0
+python-pptx>=1.0
+requests>=2.31
+itsdangerous>=2.2
+gunicorn>=21.2
