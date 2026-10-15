@@ -113,4 +113,33 @@ function requireDataset(redirect = "/editor.html") {
 
 document.addEventListener("DOMContentLoaded", () => {
   if (window.lucide) lucide.createIcons();
+
+  const nav = document.querySelector(".navbar");
+  if (nav) {
+    let lastY = 0;
+    let hidden = false;
+    const threshold = 60;
+    const show = () => {
+      if (hidden) {
+        nav.classList.remove("nav-hidden");
+        hidden = false;
+      }
+    };
+    const hide = () => {
+      if (!hidden) {
+        nav.classList.add("nav-hidden");
+        hidden = true;
+      }
+    };
+    window.addEventListener("scroll", () => {
+      const y = window.scrollY;
+      if (y < threshold) show();
+      else if (y > lastY) hide();
+      else show();
+      lastY = y;
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (e.clientY < 40) show();
+    });
+  }
 });

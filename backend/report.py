@@ -175,10 +175,11 @@ def build_pptx(title: str, slides: list[dict], logo: str | None = None) -> bytes
         if img_data and "," in img_data:
             raw = base64.b64decode(img_data.split(",", 1)[1])
             img_stream = io.BytesIO(raw)
-            if s.get("kind") == "kpi":
-                slide.shapes.add_picture(img_stream, Inches(3.5), Inches(1.6), height=Inches(4.5))
-            else:
-                slide.shapes.add_picture(img_stream, Inches(1.0), Inches(1.3), width=Inches(11.3))
+            pic = slide.shapes.add_picture(img_stream, Inches(0.5), Inches(1.3), width=Inches(12.3))
+            max_h = Inches(5.7)
+            if pic.height > max_h:
+                pic.height = max_h
+            pic.left = int((prs.slide_width - pic.width) / 2)
         elif s.get("value") is not None:
             val_box = slide.shapes.add_textbox(Inches(2), Inches(3), Inches(9.3), Inches(2))
             val_box.text_frame.text = str(s.get("value"))

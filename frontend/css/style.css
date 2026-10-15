@@ -74,25 +74,27 @@ a { color: inherit; text-decoration: none; }
 .navbar {
   position: sticky; top: 0; z-index: 50;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 4%;
+  padding: 8px 4%;
   background: var(--bg);
   box-shadow: 0 6px 18px rgba(150, 160, 190, .28);
+  transition: transform .25s ease;
 }
+.navbar.nav-hidden { transform: translateY(-100%); }
 .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1.15rem; }
-.brand img { height: 64px; width: auto; }
+.brand img { height: 48px; width: auto; }
 .nav-links { display: flex; gap: 10px; align-items: center; }
 .nav-links a {
-  padding: 9px 18px; border-radius: 12px; font-size: .93rem; font-weight: 500;
+  padding: 6px 14px; border-radius: 12px; font-size: .93rem; font-weight: 500;
   color: var(--text-soft); transition: .2s;
 }
 .nav-links a:hover { color: var(--accent); }
 .nav-links a.active { color: var(--accent); box-shadow: var(--sh-in-sm); }
 .nav-profile-link {
-  display: inline-flex; align-items: center; gap: 9px;
-  padding: 7px 16px 7px 8px; border-radius: 999px; font-size: .88rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 6px; border-radius: 999px; font-size: .88rem; font-weight: 600;
   color: var(--text); box-shadow: var(--sh-in-sm);
 }
-.nav-profile-link img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.nav-profile-link img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
 .nav-profile-link.active { color: var(--accent); }
 
 /* =========================================================================
@@ -966,3 +968,37 @@ body.embed-mode .studio { grid-template-columns: minmax(0, 1fr); }
   .features, .steps { grid-template-columns: 1fr; }
   .kpi-card { grid-column: span 12; }
 }
+
+/* ---- Sheet tabs in the editor ---- */
+.sheet-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.sheet-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: .76rem;
+  font-weight: 500;
+}
+.sheet-name { cursor: pointer; }
+.sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  border-radius: 50%;
+  font-size: .85rem;
+  line-height: 1;
+  color: inherit;
+  opacity: .7;
+  transition: opacity .15s, background .15s;
+}
+.sheet-close:hover { opacity: 1; background: rgba(0,0,0,.12); }

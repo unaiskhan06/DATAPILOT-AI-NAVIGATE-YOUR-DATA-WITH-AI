@@ -44,6 +44,8 @@
           <button class="btn btn-sm" id="mergeBtn"><i data-lucide="git-merge"></i> Merge data</button>
           <button class="btn btn-sm" id="reportPdfBtn"><i data-lucide="file-text"></i> Profile PDF</button>
           <button class="btn btn-sm" id="newFileBtn"><i data-lucide="refresh-cw"></i> New file</button>
+          <button class="btn btn-sm" id="addSheetBtn"><i data-lucide="plus"></i> Add sheet</button>
+          <input type="file" id="addSheetInput" accept=".csv,.xlsx,.xls" class="hidden" />
           <button class="btn btn-sm" id="downloadCsvBtn"><i data-lucide="download"></i> CSV</button>
           <button class="btn btn-sm" id="downloadXlsxBtn"><i data-lucide="download"></i> Excel</button>
           <a href="/dashboard.html" class="btn btn-primary btn-sm"><i data-lucide="layout-dashboard"></i> Build dashboard</a>
@@ -159,6 +161,7 @@
             <h3 style="margin:0;"><i data-lucide="table" style="width:18px"></i> Data preview <span class="muted" id="editHint" style="font-size:.8rem; font-weight:400;"></span></h3>
             <span class="chip" id="rowCountChip"></span>
           </div>
+          <div class="sheet-tabs" id="sheetTabs"></div>
           <div class="table-wrap">
             <table class="data" id="dataTable">
               <thead></thead>

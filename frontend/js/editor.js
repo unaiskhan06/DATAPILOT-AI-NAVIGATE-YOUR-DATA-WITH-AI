@@ -1,6 +1,7 @@
 /* editor.js — upload, cleaning tools, Agent mode & Editor mode */
 
 let currentProfile = null;
+let currentSheets = [];
 
 /* ---------------- Views ---------------- */
 const uploadView = document.getElementById("uploadView");
@@ -39,7 +40,7 @@ async function uploadFile(file) {
     const data = await api("/api/upload", { method: "POST", body: fd, isForm: true });
     Session.set(data.session_id);
     Session.filename(data.filename);
-    render(data.preview, data.profile);
+    render(data.preview, data.profile, data.filename, data.sheets, data.active_sheet);
     showEditor();
     toast(`Loaded ${data.profile.total_rows} rows × ${data.profile.total_cols} columns`);
   } catch (err) {
@@ -49,14 +50,74 @@ async function uploadFile(file) {
 }
 
 /* ---------------- Rendering ---------------- */
-function render(preview, profile) {
+function renderSheets(sheets, activeSheet) {
+  currentSheets = sheets || [];
+  const wrap = document.getElementById("sheetTabs");
+  if (!wrap) return;
+  if (!currentSheets.length) {
+    wrap.innerHTML = "";
+    return;
+  }
+  wrap.innerHTML = currentSheets
+    .map(
+      (s) => `
+      <div class="btn btn-sm sheet-tab ${s === activeSheet ? "btn-primary" : ""}" data-sheet="${escapeHtml(s)}">
+        <span class="sheet-name">${escapeHtml(s)}</span>
+        <span class="sheet-close" data-sheet="${escapeHtml(s)}" title="Remove sheet">×</span>
+      </div>`
+    )
+    .join("");
+  wrap.querySelectorAll(".sheet-name").forEach((el) => {
+    const name = el.parentElement.dataset.sheet;
+    if (name === activeSheet) return;
+    el.addEventListener("click", () => switchSheet(name));
+  });
+  wrap.querySelectorAll(".sheet-close").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeSheet(el.dataset.sheet);
+    });
+  });
+}
+
+async function removeSheet(name) {
+  try {
+    const data = await api("/api/remove-sheet", { method: "POST", body: { sheet: name } });
+    if (!data.sheets || !data.sheets.length) {
+      currentSheets = [];
+      document.getElementById("sheetTabs").innerHTML = "";
+      Session.clear();
+      showUpload();
+      toast("All sheets removed");
+      return;
+    }
+    render(data.preview, data.profile, data.filename, data.sheets, data.active_sheet);
+    toast(`Removed ${name}`);
+  } catch (err) {
+    toast(err.message, "err");
+  }
+}
+
+async function switchSheet(name) {
+  try {
+    const data = await api("/api/switch-sheet", { method: "POST", body: { sheet: name } });
+    render(data.preview, data.profile, data.filename, data.sheets, data.active_sheet);
+    toast(`Switched to ${data.filename}`);
+  } catch (err) {
+    toast(err.message, "err");
+  }
+}
+
+function render(preview, profile, filename = null, sheets = null, activeSheet = null) {
   currentProfile = profile;
+  if (filename) Session.filename(filename);
   document.getElementById("fileName").textContent = Session.filename();
   renderStats(profile);
   renderTable(preview);
   populateColumnSelects(profile);
   document.getElementById("rowCountChip").textContent =
     `${preview.shown_rows} of ${preview.total_rows} rows`;
+  if (sheets) renderSheets(sheets, activeSheet);
 }
 
 function renderStats(p) {
@@ -189,8 +250,30 @@ document.getElementById("undoBtn").addEventListener("click", async () => {
 
 document.getElementById("newFileBtn").addEventListener("click", () => {
   Session.clear();
+  currentSheets = [];
+  document.getElementById("sheetTabs").innerHTML = "";
   showUpload();
   dropzone.querySelector("h3").textContent = "Drag & drop your file here";
+});
+
+const addSheetBtn = document.getElementById("addSheetBtn");
+const addSheetInput = document.getElementById("addSheetInput");
+addSheetBtn.addEventListener("click", () => addSheetInput.click());
+addSheetInput.addEventListener("change", async () => {
+  const file = addSheetInput.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const data = await api("/api/add-sheet", { method: "POST", body: fd, isForm: true });
+    Session.set(data.session_id);
+    Session.filename(data.filename);
+    render(data.preview, data.profile, data.filename, data.sheets, data.active_sheet);
+    toast(`Added sheet ${data.filename}`);
+  } catch (err) {
+    toast(err.message, "err");
+  }
+  addSheetInput.value = "";
 });
 
 document.getElementById("downloadCsvBtn").addEventListener("click", () => download("csv"));
@@ -533,8 +616,12 @@ async function init() {
   if (!(await requireLogin())) return;
   if (Session.get()) {
     try {
-      const [preview, profile] = await Promise.all([api("/api/preview"), api("/api/profile")]);
-      render(preview, profile);
+      const [preview, profile, sheets] = await Promise.all([
+        api("/api/preview"),
+        api("/api/profile"),
+        api("/api/sheets"),
+      ]);
+      render(preview, profile, sheets.active_sheet, sheets.sheets, sheets.active_sheet);
       showEditor();
     } catch (_) {
       Session.clear();

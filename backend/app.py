@@ -80,10 +80,36 @@ def _get_session(create: bool = False):
             return None, None
         sid = uuid.uuid4().hex
     session = SESSIONS.get(sid)
+    if session is not None:
+        session.setdefault("sheets", {})
+        session.setdefault("active_sheet", None)
     if session is None and create:
-        session = {"df": None, "history": [], "log": [], "filename": "dataset"}
+        session = {
+            "df": None,
+            "history": [],
+            "log": [],
+            "filename": "dataset",
+            "sheets": {},
+            "active_sheet": None,
+        }
         SESSIONS[sid] = session
     return sid, session
+
+
+def _unique_sheet_name(session, filename: str) -> str:
+    base = os.path.splitext(filename)[0].strip() or "dataset"
+    name = base
+    n = 2
+    while name in session["sheets"]:
+        name = f"{base} ({n})"
+        n += 1
+    return name
+
+
+def _sync_active_sheet(session):
+    active = session.get("active_sheet")
+    if active and active in session.get("sheets", {}):
+        session["sheets"][active] = session["df"]
 
 
 def _push_history(session, message: str | None = None):
@@ -355,16 +381,140 @@ def upload():
         return jsonify({"error": f"Could not read file: {exc}"}), 400
 
     sid, session = _get_session(create=True)
+    name = _unique_sheet_name(session, file.filename)
+    session["sheets"] = {name: df}
+    session["active_sheet"] = name
     session["df"] = df
     session["history"] = []
-    session["filename"] = os.path.splitext(file.filename)[0]
+    session["filename"] = name
 
     return jsonify(
         {
             "session_id": sid,
-            "filename": session["filename"],
+            "filename": name,
+            "active_sheet": name,
+            "sheets": list(session["sheets"].keys()),
             "preview": data_ops.preview(df),
             "profile": data_ops.profile(df),
+        }
+    )
+
+
+@app.route("/api/add-sheet", methods=["POST"])
+def add_sheet():
+    login_err = _require_login()
+    if login_err:
+        return login_err
+    sid, session = _get_session()
+    if not session:
+        return jsonify({"error": "No session. Upload a file first."}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided."}), 400
+    file = request.files["file"]
+    if not file.filename:
+        return jsonify({"error": "Empty filename."}), 400
+    try:
+        df = data_ops.load_dataframe(file)
+    except Exception as exc:
+        return jsonify({"error": f"Could not read file: {exc}"}), 400
+
+    name = _unique_sheet_name(session, file.filename)
+    session["sheets"][name] = df
+    session["active_sheet"] = name
+    session["df"] = df
+    session["history"] = []
+    session["filename"] = name
+
+    return jsonify(
+        {
+            "session_id": sid,
+            "filename": name,
+            "active_sheet": name,
+            "sheets": list(session["sheets"].keys()),
+            "preview": data_ops.preview(df),
+            "profile": data_ops.profile(df),
+        }
+    )
+
+
+@app.route("/api/sheets", methods=["GET"])
+def list_sheets():
+    sid, session, err = _require_df()
+    if err:
+        return err
+    return jsonify(
+        {
+            "sheets": list(session["sheets"].keys()),
+            "active_sheet": session["active_sheet"],
+        }
+    )
+
+
+@app.route("/api/switch-sheet", methods=["POST"])
+def switch_sheet():
+    sid, session, err = _require_df()
+    if err:
+        return err
+    body = request.get_json(force=True) or {}
+    name = body.get("sheet")
+    if not name or name not in session["sheets"]:
+        return jsonify({"error": "Sheet not found."}), 400
+    df = session["sheets"][name]
+    session["df"] = df
+    session["active_sheet"] = name
+    session["filename"] = name
+    session["history"] = []
+
+    return jsonify(
+        {
+            "filename": name,
+            "active_sheet": name,
+            "sheets": list(session["sheets"].keys()),
+            "preview": data_ops.preview(df),
+            "profile": data_ops.profile(df),
+        }
+    )
+
+
+@app.route("/api/remove-sheet", methods=["POST"])
+def remove_sheet():
+    sid, session = _get_session()
+    if not session:
+        return jsonify({"error": "No session."}), 400
+    body = request.get_json(force=True) or {}
+    name = body.get("sheet")
+    if not name or name not in session.get("sheets", {}):
+        return jsonify({"error": "Sheet not found."}), 400
+    del session["sheets"][name]
+    if session["active_sheet"] == name:
+        session["active_sheet"] = None
+        session["df"] = None
+        session["filename"] = "dataset"
+        session["history"] = []
+        session["log"] = []
+        remaining = list(session["sheets"].keys())
+        if remaining:
+            new_name = remaining[0]
+            session["active_sheet"] = new_name
+            session["df"] = session["sheets"][new_name]
+            session["filename"] = new_name
+            return jsonify(
+                {
+                    "filename": new_name,
+                    "active_sheet": new_name,
+                    "sheets": remaining,
+                    "preview": data_ops.preview(session["df"]),
+                    "profile": data_ops.profile(session["df"]),
+                }
+            )
+        return jsonify({"sheets": [], "active_sheet": None})
+    return jsonify(
+        {
+            "filename": session["filename"],
+            "active_sheet": session["active_sheet"],
+            "sheets": list(session["sheets"].keys()),
+            "preview": data_ops.preview(session["df"]),
+            "profile": data_ops.profile(session["df"]),
         }
     )
 
@@ -399,6 +549,7 @@ def operation():
     new_df, message = data_ops.apply_operation(session["df"], name, params)
     _push_history(session, message)
     session["df"] = new_df
+    _sync_active_sheet(session)
     return jsonify(
         {
             "message": message,
@@ -446,6 +597,7 @@ def agent():
         applied.append(msg)
     _push_history(session, result.get("explanation") or "; ".join(applied))
     session["df"] = working
+    _sync_active_sheet(session)
 
     return jsonify(
         {
@@ -465,6 +617,7 @@ def undo():
     if not session["history"]:
         return jsonify({"error": "Nothing to undo."}), 400
     session["df"] = session["history"].pop()
+    _sync_active_sheet(session)
     if session.get("log"):
         session["log"].pop()
     return jsonify(
@@ -567,6 +720,7 @@ def rollback_history():
         return jsonify({"error": "Invalid history index."}), 400
     index = int(index)
     session["df"] = history[index]
+    _sync_active_sheet(session)
     session["history"] = history[:index]
     session["log"] = log[:index]
     return jsonify(
@@ -623,6 +777,7 @@ def apply_schema_suggestion_route():
     )
     _push_history(session, message)
     session["df"] = new_df
+    _sync_active_sheet(session)
     return jsonify(
         {
             "message": message,
@@ -667,6 +822,7 @@ def merge():
     new_df, message = data_ops.merge_dataframes(session["df"], df2, left_on, right_on, how)
     _push_history(session, message)
     session["df"] = new_df
+    _sync_active_sheet(session)
     return jsonify(
         {
             "message": message,
@@ -800,6 +956,9 @@ def refresh_url():
     session["history"] = []
     session["log"] = []
     session["filename"] = session.get("filename") or "remote_dataset"
+    if not session.get("active_sheet"):
+        session["active_sheet"] = session["filename"]
+    _sync_active_sheet(session)
     return jsonify(
         {
             "session_id": sid,

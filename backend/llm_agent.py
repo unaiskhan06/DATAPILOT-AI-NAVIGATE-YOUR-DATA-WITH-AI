@@ -45,6 +45,22 @@ Available operations (name -> params):
 - delete_row { "row": int }
 - add_row { "values": { col: value } }
 - edit_cell { "row": int, "column": str, "value": any }
+- group_by { "by": str, "agg": { "column": "sum|mean|count|max|min|std" } }
+- compute { "function": "SUM|AVERAGE|COUNT|MAX|MIN|ROUND|IF|AND|OR|IFERROR|CONCAT|LEFT|RIGHT|MID|TRIM|UPPER|LOWER|LEN|TODAY|YEAR|MONTH|DAY|DATEDIF|VLOOKUP|INDEX|MATCH", "new_column": str, ... }
+
+Compute function quick reference:
+- SUM/AVERAGE/COUNT/MAX/MIN: { "function": "SUM", "new_column": "Total", "columns": ["A","B"] }
+- ROUND: { "function": "ROUND", "new_column": "Rounded", "column": "X", "decimals": 0 }
+- IF: { "function": "IF", "new_column": "Label", "condition": "Salary > 50000", "then": "High", "else": "Low" }
+- AND/OR: { "function": "AND", "new_column": "Flag", "conditions": ["Age >= 18", "Age <= 65"] }
+- IFERROR: { "function": "IFERROR", "new_column": "Safe", "expression": "A / B", "fallback": 0 }
+- CONCAT: { "function": "CONCAT", "new_column": "Full", "columns": ["First","Last"], "separator": " " }
+- LEFT/RIGHT/MID: { "function": "LEFT", "new_column": "Code", "column": "ID", "length": 3 }
+- TRIM/UPPER/LOWER/LEN: { "function": "UPPER", "new_column": "Upper", "column": "Name" }
+- YEAR/MONTH/DAY: { "function": "YEAR", "new_column": "Year", "column": "Date" }
+- DATEDIF: { "function": "DATEDIF", "new_column": "Days", "column": "Start", "date2": "End", "unit": "D" }
+- VLOOKUP: { "function": "VLOOKUP", "new_column": "Manager", "value": "Dept", "lookup_column": "Department", "result_column": "ManagerName" }
+- INDEX/MATCH: { "function": "MATCH", "value": "IT", "column": "Department" } or { "function": "INDEX", "column": "Salary", "row": 5 }
 """
 
 SYSTEM_PROMPT = """You are DataPilot AI's data-cleaning agent.

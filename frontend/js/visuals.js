@@ -12,6 +12,17 @@
      "chart" — drawn by Chart.js via buildVisualConfig()
      "dom"   — drawn with HTML by dashboard.js
 */
+function prettyName(name) {
+  if (!name) return name;
+  return String(name)
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /* Inline SVG mini-chart icons — 20×20 viewBox, uses currentColor */
 const VISUAL_SVG = {
   stacked_bar:`<svg viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="3" width="9" height="2.5" rx=".4" opacity=".9"/><rect x="10" y="3" width="5" height="2.5" rx=".4" opacity=".45"/><rect x="1" y="7.5" width="11" height="2.5" rx=".4" opacity=".9"/><rect x="12" y="7.5" width="4" height="2.5" rx=".4" opacity=".45"/><rect x="1" y="12" width="7" height="2.5" rx=".4" opacity=".9"/><rect x="8" y="12" width="8" height="2.5" rx=".4" opacity=".45"/><rect x="1" y="16.5" width="10" height="2.5" rx=".4" opacity=".9"/><rect x="11" y="16.5" width="5" height="2.5" rx=".4" opacity=".45"/></svg>`,
@@ -130,15 +141,15 @@ function buildVisualConfig(spec, payload, opts = {}) {
   };
 
   const labels = payload.labels || [];
-  const measureLabel = spec.y ? `${spec.agg || "sum"} of ${spec.y}` : "count";
+  const measureLabel = spec.y ? `${spec.agg || "sum"} of ${prettyName(spec.y)}` : "count";
 
   /* ---- Scatter ---------------------------------------------------------- */
   if (type === "scatter") {
     return {
       type: "scatter",
-      data: { datasets: [{ label: spec.title, data: payload.points || [], backgroundColor: base + "cc" }] },
+      data: { datasets: [{ label: prettyName(spec.title), data: payload.points || [], backgroundColor: base + "cc" }] },
       options: Object.assign({}, commonOptions, {
-        scales: { x: { title: { display: true, text: spec.x } }, y: { title: { display: true, text: spec.y } } },
+        scales: { x: { title: { display: true, text: prettyName(spec.x) } }, y: { title: { display: true, text: prettyName(spec.y) } } },
       }),
     };
   }
@@ -279,8 +290,8 @@ function buildVisualConfig(spec, payload, opts = {}) {
   }
 
   const scales = {
-    x: { stacked: stacked && !horizontal, grid: { display: horizontal } },
-    y: { stacked: stacked, beginAtZero: true, grid: { display: !horizontal } },
+    x: { stacked: stacked && !horizontal, grid: { display: horizontal }, title: { display: !!spec.x, text: prettyName(spec.x) } },
+    y: { stacked: stacked, beginAtZero: true, grid: { display: !horizontal }, title: { display: !!spec.y, text: prettyName(spec.y) || "Count" } },
   };
   if (type === "line_stacked_column" && payload.line_values) {
     scales.y1 = { position: "right", beginAtZero: true, grid: { drawOnChartArea: false } };

@@ -347,7 +347,7 @@ async function addWidget(spec) {
   card.id = id;
   card.innerHTML = `
     <div class="viz-head">
-      <h4>${spec.title}</h4>
+      <h4>${prettyName(spec.title)}</h4>
       ${vizActionsHTML({ chart: true, color: spec.color })}
     </div>
     <div class="viz-body"><canvas></canvas></div>`;
@@ -390,13 +390,13 @@ async function addKpiWidget(spec) {
           <div class="kpi-v-sm gradient-text" data-kpi-value>—</div>
         </div>
       </div>
-      <div class="kpi-l">${spec.title}</div>
+      <div class="kpi-l">${prettyName(spec.title)}</div>
       <div class="kpi-goal-note" data-kpi-goal-note></div>`
     : `<div class="viz-actions kpi-remove">
         <button class="btn btn-icon btn-sm" data-act="remove" title="Remove"><i data-lucide="x" style="width:14px"></i></button>
       </div>
       <div class="kpi-v gradient-text" data-kpi-value>—</div>
-      <div class="kpi-l">${spec.title}</div>`;
+      <div class="kpi-l">${prettyName(spec.title)}</div>`;
   appendDashboardCard(card);
   card.querySelector('[data-act="remove"]').addEventListener("click", () => removeWidget(id));
 
@@ -438,7 +438,7 @@ async function renderKpiValue(id, spec) {
 /* ---- Slicer widget ---- */
 async function addSlicerWidget(column) {
   const id = "w" + widgetSeq++;
-  const spec = { kind: "slicer", column, selected: new Set(), title: `Filter: ${column}` };
+  const spec = { kind: "slicer", column, selected: new Set(), title: `Filter: ${prettyName(column)}` };
   widgets.push({ id, spec });
 
   const card = document.createElement("div");
@@ -740,7 +740,7 @@ async function addPivotWidget(spec) {
   card.id = id;
   card.innerHTML = `
     <div class="viz-head">
-      <h4><i data-lucide="table-2" style="width:15px"></i> ${spec.title}</h4>
+      <h4><i data-lucide="table-2" style="width:15px"></i> ${prettyName(spec.title)}</h4>
       ${vizActionsHTML({})}
     </div>
     <div class="table-wrap pivot-wrap"><table class="data"><thead></thead><tbody></tbody></table></div>`;
@@ -787,7 +787,7 @@ async function addGeoWidget(spec) {
   card.id = id;
   card.innerHTML = `
     <div class="viz-head">
-      <h4><i data-lucide="globe" style="width:15px"></i> ${spec.title}</h4>
+      <h4><i data-lucide="globe" style="width:15px"></i> ${prettyName(spec.title)}</h4>
       ${vizActionsHTML({})}
     </div>
     <div class="geo-list" data-geo-list><span class="muted" style="font-size:.82rem;">Loading…</span></div>`;
@@ -883,13 +883,13 @@ function buildChartConfig(spec, payload) {
       type: "scatter",
       data: {
         datasets: [{
-          label: spec.title,
+          label: prettyName(spec.title),
           data: payload.points || [],
           backgroundColor: base + "cc",
         }],
       },
       options: Object.assign(baseOptions, {
-        scales: { x: { title: { display: true, text: spec.x } }, y: { title: { display: true, text: spec.y } } },
+        scales: { x: { title: { display: true, text: prettyName(spec.x) } }, y: { title: { display: true, text: prettyName(spec.y) } } },
       }),
     };
   }
@@ -904,7 +904,7 @@ function buildChartConfig(spec, payload) {
     data: {
       labels,
       datasets: [{
-        label: spec.y ? `${spec.agg} of ${spec.y}` : "count",
+        label: spec.y ? `${spec.agg} of ${prettyName(spec.y)}` : "count",
         data: values,
         backgroundColor: isCircular ? colors : base + (type === "line" ? "22" : "cc"),
         borderColor: type === "line" ? base : (isCircular ? "#fff" : base),
@@ -1008,7 +1008,7 @@ document.getElementById("mAdd").addEventListener("click", () => {
     x: mX.value,
     y: mY.value || null,
     agg: mAgg.value,
-    title: document.getElementById("mTitle").value.trim() || `${mType.value} of ${mX.value}`,
+    title: document.getElementById("mTitle").value.trim() || `${mType.value} of ${prettyName(mX.value)}`,
   };
   addWidget(spec);
   modal.classList.remove("open");
@@ -1028,7 +1028,7 @@ const kpiModal = wireModal("kpiModal", null, "kCancel");
 document.getElementById("kAdd").addEventListener("click", () => {
   const column = document.getElementById("kCol").value || null;
   const agg = document.getElementById("kAgg").value;
-  const title = document.getElementById("kTitle").value.trim() || (column ? `${agg} of ${column}` : "Row count");
+  const title = document.getElementById("kTitle").value.trim() || (column ? `${agg} of ${prettyName(column)}` : "Row count");
   const goalRaw = document.getElementById("kGoal").value;
   const goal = goalRaw ? Number(goalRaw) : null;
   addKpiWidget({ column, agg: column ? agg : "count_rows", title, goal });
@@ -1049,7 +1049,7 @@ document.getElementById("pAdd").addEventListener("click", () => {
   const columns = document.getElementById("pCols").value || null;
   const values = document.getElementById("pVals").value || null;
   const agg = document.getElementById("pAgg").value;
-  const title = document.getElementById("pTitle").value.trim() || `Pivot: ${index}${columns ? " × " + columns : ""}`;
+  const title = document.getElementById("pTitle").value.trim() || `Pivot: ${prettyName(index)}${columns ? " × " + prettyName(columns) : ""}`;
   addPivotWidget({ index, columns, values, agg, title });
   pivotModal.classList.remove("open");
   document.getElementById("pTitle").value = "";
@@ -1061,7 +1061,7 @@ document.getElementById("gAdd").addEventListener("click", () => {
   const column = document.getElementById("gCol").value;
   const value_col = document.getElementById("gVal").value || null;
   const agg = document.getElementById("gAgg").value;
-  const title = document.getElementById("gTitle").value.trim() || `Geo: ${column}`;
+  const title = document.getElementById("gTitle").value.trim() || `Geo: ${prettyName(column)}`;
   addGeoWidget({ column, value_col, agg: value_col ? agg : "count", title });
   geoModal.classList.remove("open");
   document.getElementById("gTitle").value = "";
@@ -1183,9 +1183,9 @@ document.getElementById("exportPptxBtn").addEventListener("click", async () => {
     if (w.spec.kind === "slicer") continue; // slicers are controls, not content
     if (w.spec.kind === "kpi") {
       const valEl = document.querySelector(`#${w.id} [data-kpi-value]`);
-      slides.push({ title: w.spec.title, kind: "kpi", value: valEl ? valEl.textContent : "" });
+      slides.push({ title: prettyName(w.spec.title), kind: "kpi", value: valEl ? valEl.textContent : "" });
     } else if (charts[w.id]) {
-      slides.push({ title: w.spec.title, kind: "chart", image: charts[w.id].toBase64Image("image/png", 1) });
+      slides.push({ title: prettyName(w.spec.title), kind: "chart", image: charts[w.id].toBase64Image("image/png", 1) });
     } else {
       // geo / pivot / other DOM-based widgets — capture the card body as an image
       const bodyEl = document.querySelector(`#${w.id} .geo-list, #${w.id} .pivot-wrap, #${w.id} .viz-body`) || document.getElementById(w.id);
@@ -1227,7 +1227,7 @@ async function addVisualWidget(spec) {
   card.id = id;
   card.innerHTML = `
     <div class="viz-head">
-      <h4>${escapeAttr(spec.title)}</h4>
+      <h4>${escapeAttr(prettyName(spec.title))}</h4>
       ${vizActionsHTML({ chart: isChart, color: spec.color, edit: true })}
     </div>
     ${visualBodyHTML(spec)}`;
@@ -1725,7 +1725,7 @@ async function applyVizPane() {
       const def = visualById(w.spec.type);
       card.innerHTML = `
         <div class="viz-head">
-          <h4>${escapeAttr(w.spec.title)}</h4>
+          <h4>${escapeAttr(prettyName(w.spec.title))}</h4>
           ${vizActionsHTML({ chart: !!def && def.render === "chart", color: w.spec.color, edit: true })}
         </div>
         ${visualBodyHTML(w.spec)}`;
@@ -2104,11 +2104,38 @@ async function exportDashboard(fmt) {
   const dashCanvasEl = document.getElementById("dashCanvas");
   const zoomBefore = dashCanvasEl ? dashCanvasEl.style.zoom : null;
   if (dashCanvasEl) dashCanvasEl.style.zoom = 1;
-  await new Promise((r) => setTimeout(r, 150)); // let styles settle
+  // Make sure web fonts are loaded before capturing text.
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  await new Promise((r) => setTimeout(r, 200)); // let styles settle
 
   let canvas;
   try {
-    canvas = await html2canvas(root, { backgroundColor: null, scale: 2, useCORS: true });
+    canvas = await html2canvas(root, {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      imageTimeout: 0,
+      onclone: (clone) => {
+        // Replace Chart.js <canvas> elements with rendered PNG images so
+        // html2canvas captures the actual charts instead of blank canvases.
+        for (const [id, chart] of Object.entries(charts)) {
+          if (!chart || !chart.toBase64Image) continue;
+          const card = clone.getElementById(id);
+          const cnv = card && card.querySelector("canvas");
+          if (!cnv) continue;
+          const img = clone.createElement("img");
+          img.src = chart.toBase64Image("image/png", 1);
+          img.style.cssText = cnv.style.cssText;
+          img.style.width = cnv.style.width || "100%";
+          img.style.height = cnv.style.height || "100%";
+          img.style.display = "block";
+          img.style.position = cnv.style.position || "relative";
+          cnv.parentNode.insertBefore(img, cnv);
+          cnv.style.display = "none";
+        }
+      },
+    });
   } finally {
     root.classList.remove("glass-export");
     if (dashCanvasEl) dashCanvasEl.style.zoom = zoomBefore;

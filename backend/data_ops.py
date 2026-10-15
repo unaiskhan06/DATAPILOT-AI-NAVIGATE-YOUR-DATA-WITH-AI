@@ -7,6 +7,8 @@ Every mutating operation returns a NEW DataFrame so callers can manage undo hist
 from __future__ import annotations
 
 import io
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -61,6 +63,16 @@ def _json_safe(value):
     if pd.isna(value):
         return None
     return value
+
+
+def _pretty(name):
+    """Turn raw column names like Credit_Card_Type or CreditCardType into 'Credit Card Type'."""
+    s = str(name)
+    s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", s)
+    s = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", s)
+    s = s.replace("_", " ").replace("-", " ")
+    s = " ".join(s.split())
+    return s.title() if s else s
 
 
 def preview(df: pd.DataFrame, limit: int | None = None) -> dict:
@@ -302,6 +314,142 @@ def op_delete_row(df, row=None, **_):
     return new, f"Deleted row {row}."
 
 
+def op_group_by(df, by=None, agg=None, **_):
+    """SQL-style GROUP BY aggregation. agg is {column: 'sum'|'mean'|'count'|'max'|'min'|...}."""
+    if by is None or not agg:
+        return df, "Missing 'by' or 'agg' parameters for group_by."
+    if by not in df.columns:
+        return df, f"Column '{by}' not found."
+    if not isinstance(agg, dict):
+        return df, "'agg' must be a dictionary like {column: 'sum'}."
+    valid = {c: fn for c, fn in agg.items() if c in df.columns}
+    if not valid:
+        return df, "No valid columns to aggregate."
+    try:
+        result = df.groupby(by, as_index=False).agg(valid)
+    except Exception as exc:
+        return df, f"Group by failed: {exc}"
+    return result, f"Grouped by '{by}' with {len(valid)} aggregation(s)."
+
+
+def op_compute(df, function=None, new_column=None, **kwargs):
+    """Excel-style formula functions applied row-wise or as scalar lookups."""
+    if not function:
+        return df, "Missing 'function' parameter for compute."
+    new = df.copy()
+    col = kwargs.get("column")
+    if new_column is None:
+        new_column = f"{function}_{col or 'result'}"
+
+    def _resolve(val):
+        return new[val] if val in new.columns else val
+
+    try:
+        fn = function.upper()
+        if fn in ("SUM", "AVERAGE", "COUNT", "MAX", "MIN"):
+            cols = kwargs["columns"]
+            if fn == "SUM":
+                new[new_column] = new[cols].sum(axis=1)
+            elif fn == "AVERAGE":
+                new[new_column] = new[cols].mean(axis=1)
+            elif fn == "COUNT":
+                new[new_column] = new[cols].count(axis=1)
+            elif fn == "MAX":
+                new[new_column] = new[cols].max(axis=1)
+            elif fn == "MIN":
+                new[new_column] = new[cols].min(axis=1)
+        elif fn == "ROUND":
+            new[new_column] = new[col].round(int(kwargs.get("decimals", 0)))
+        elif fn == "IF":
+            mask = new.eval(kwargs["condition"], engine="python")
+            new[new_column] = np.where(mask, _resolve(kwargs["then"]), _resolve(kwargs["else"]))
+        elif fn == "AND":
+            mask = pd.Series(True, index=new.index)
+            for cond in kwargs.get("conditions", []):
+                mask = mask & new.eval(cond, engine="python")
+            new[new_column] = mask
+        elif fn == "OR":
+            mask = pd.Series(False, index=new.index)
+            for cond in kwargs.get("conditions", []):
+                mask = mask | new.eval(cond, engine="python")
+            new[new_column] = mask
+        elif fn == "IFERROR":
+            values = new.eval(kwargs["expression"], engine="python")
+            fallback = _resolve(kwargs["fallback"])
+            if pd.api.types.is_numeric_dtype(values):
+                mask = np.isfinite(values) & values.notna()
+            else:
+                mask = values.notna()
+            new[new_column] = values.where(mask, fallback)
+        elif fn == "CONCAT":
+            cols = kwargs["columns"]
+            sep = kwargs.get("separator", "")
+            new[new_column] = new[cols].astype(str).agg(sep.join, axis=1)
+        elif fn == "LEFT":
+            new[new_column] = new[col].astype(str).str[: int(kwargs["length"])]
+        elif fn == "RIGHT":
+            new[new_column] = new[col].astype(str).str[-int(kwargs["length"]) :]
+        elif fn == "MID":
+            start = int(kwargs["start"]) - 1
+            length = int(kwargs["length"])
+            new[new_column] = new[col].astype(str).str[start : start + length]
+        elif fn == "TRIM":
+            new[new_column] = new[col].astype(str).str.strip()
+        elif fn == "UPPER":
+            new[new_column] = new[col].astype(str).str.upper()
+        elif fn == "LOWER":
+            new[new_column] = new[col].astype(str).str.lower()
+        elif fn == "LEN":
+            new[new_column] = new[col].astype(str).str.len()
+        elif fn == "TODAY":
+            new[new_column] = pd.Timestamp.today().normalize()
+        elif fn == "YEAR":
+            new[new_column] = pd.to_datetime(new[col]).dt.year
+        elif fn == "MONTH":
+            new[new_column] = pd.to_datetime(new[col]).dt.month
+        elif fn == "DAY":
+            new[new_column] = pd.to_datetime(new[col]).dt.day
+        elif fn == "DATEDIF":
+            d1 = pd.to_datetime(new[col])
+            date2 = kwargs["date2"]
+            d2 = pd.to_datetime(new[date2]) if date2 in new.columns else pd.to_datetime(date2)
+            days = (d2 - d1).dt.days
+            unit = kwargs.get("unit", "D").upper()
+            if unit == "D":
+                new[new_column] = days
+            elif unit == "M":
+                new[new_column] = np.floor(days / 30.436875)
+            elif unit == "Y":
+                new[new_column] = np.floor(days / 365.2425)
+            else:
+                return df, f"Unknown DATEDIF unit '{unit}'."
+        elif fn == "VLOOKUP":
+            value = kwargs["value"]
+            lookup_col = kwargs["lookup_column"]
+            result_col = kwargs["result_column"]
+            lookup = new.drop_duplicates(subset=[lookup_col]).set_index(lookup_col)[result_col]
+            if value in new.columns:
+                new[new_column] = new[value].map(lookup)
+            else:
+                new[new_column] = lookup.get(value)
+        elif fn == "MATCH":
+            value = kwargs["value"]
+            column = kwargs["column"]
+            matches = new[new[column] == value]
+            idx = int(matches.index[0]) + 1 if len(matches) else None
+            return pd.DataFrame({"MATCH": [idx]}), f"Match for '{value}' in '{column}': {idx}"
+        elif fn == "INDEX":
+            row = int(kwargs["row"]) - 1
+            column = kwargs["column"]
+            val = _json_safe(new.iloc[row][column])
+            return pd.DataFrame({column: [val]}), f"Value at row {row + 1}, column '{column}'"
+        else:
+            return df, f"Unknown compute function '{function}'."
+    except Exception as exc:
+        return df, f"Compute '{function}' failed: {exc}"
+    return new, f"Computed '{new_column}' using {function}."
+
+
 # Registry: maps an operation name -> handler function.
 OPERATIONS = {
     "remove_null_rows": op_remove_null_rows,
@@ -319,6 +467,8 @@ OPERATIONS = {
     "edit_cell": op_edit_cell,
     "add_row": op_add_row,
     "delete_row": op_delete_row,
+    "group_by": op_group_by,
+    "compute": op_compute,
 }
 
 
@@ -355,7 +505,7 @@ def recommend_charts(df: pd.DataFrame, max_recommendations: int = 8) -> list[dic
             recs.append(
                 {
                     "type": "pie",
-                    "title": f"Distribution of {cat['name']}",
+                    "title": f"Distribution of {_pretty(cat['name'])}",
                     "x": cat["name"],
                     "y": None,
                     "agg": "count",
@@ -367,7 +517,7 @@ def recommend_charts(df: pd.DataFrame, max_recommendations: int = 8) -> list[dic
             recs.append(
                 {
                     "type": "bar",
-                    "title": f"Count by {cat['name']}",
+                    "title": f"Count by {_pretty(cat['name'])}",
                     "x": cat["name"],
                     "y": None,
                     "agg": "count",
@@ -383,7 +533,7 @@ def recommend_charts(df: pd.DataFrame, max_recommendations: int = 8) -> list[dic
                 recs.append(
                     {
                         "type": "bar",
-                        "title": f"Average {num['name']} by {cat['name']}",
+                        "title": f"Average {_pretty(num['name'])} by {_pretty(cat['name'])}",
                         "x": cat["name"],
                         "y": num["name"],
                         "agg": "mean",
@@ -398,7 +548,7 @@ def recommend_charts(df: pd.DataFrame, max_recommendations: int = 8) -> list[dic
             recs.append(
                 {
                     "type": "line",
-                    "title": f"{num['name']} over {dt['name']}",
+                    "title": f"{_pretty(num['name'])} over {_pretty(dt['name'])}",
                     "x": dt["name"],
                     "y": num["name"],
                     "agg": "sum",
@@ -412,7 +562,7 @@ def recommend_charts(df: pd.DataFrame, max_recommendations: int = 8) -> list[dic
         recs.append(
             {
                 "type": "scatter",
-                "title": f"{numeric[0]['name']} vs {numeric[1]['name']}",
+                "title": f"{_pretty(numeric[0]['name'])} vs {_pretty(numeric[1]['name'])}",
                 "x": numeric[0]["name"],
                 "y": numeric[1]["name"],
                 "agg": "none",
@@ -426,7 +576,7 @@ def recommend_charts(df: pd.DataFrame, max_recommendations: int = 8) -> list[dic
         recs.append(
             {
                 "type": "histogram",
-                "title": f"Distribution of {num['name']}",
+                "title": f"Distribution of {_pretty(num['name'])}",
                 "x": num["name"],
                 "y": None,
                 "agg": "count",
