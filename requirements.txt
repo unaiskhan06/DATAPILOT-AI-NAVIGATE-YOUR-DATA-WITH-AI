@@ -14,3 +14,4 @@ python-pptx>=1.0
 requests>=2.31
 itsdangerous>=2.2
 gunicorn>=21.2
+Pillow>=10.0

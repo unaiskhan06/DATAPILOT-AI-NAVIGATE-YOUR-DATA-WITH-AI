@@ -15,7 +15,7 @@
   <nav class="navbar" id="navbar"></nav>
 
   <div class="hero-shell">
-    <canvas class="landscape-canvas" id="landscapeBg" aria-hidden="true"></canvas>
+    <canvas class="glass-tiles-canvas" id="glassTilesBg" aria-hidden="true"></canvas>
     <header class="container">
       <div class="hero">
         <div>
@@ -31,7 +31,13 @@
           </div>
         </div>
         <div class="hero-art neo">
-          <img src="/Images/DataPilot AI Logo.png" alt="DataPilot AI logo" />
+          <iframe
+            class="hero-3d"
+            src="/static/index.html?embed=1"
+            title="360 degree 3D device showcase"
+            loading="eager"
+            allow="fullscreen"
+          ></iframe>
         </div>
       </div>
     </header>
@@ -122,7 +128,7 @@
   </footer>
 
   <script src="/js/common.js"></script>
-  <script src="/js/landscape-bg.js"></script>
+  <script src="/js/glass-tiles.js"></script>
   <script>renderNavbar("home"); lucide.createIcons();</script>
 </body>
 </html>

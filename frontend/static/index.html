@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>360° Device Showcase</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script>
+    if (new URLSearchParams(window.location.search).get("embed") === "1") {
+      document.documentElement.classList.add("embedded");
+    }
+  </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="stage" aria-label="Interactive 3D device mockup"></canvas>
+  <div id="loader">Loading 3D scene…</div>
+
+  <header class="brand">
+    <strong>360° Device Showcase</strong>
+    <span>Laptop · Monitor · Phone</span>
+  </header>
+
+  <div class="hint" id="hint">Drag to rotate · Scroll / pinch to zoom · Right-drag to pan</div>
+
+  <section class="gallery" id="gallery" aria-label="Uploaded screens"></section>
+
+  <nav class="toolbar" aria-label="Viewer controls">
+    <label class="btn primary" for="file">Upload screen</label>
+    <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
+
+    <select id="target" aria-label="Apply image to">
+      <option value="all">All devices</option>
+      <option value="laptop">Laptop</option>
+      <option value="monitor">Monitor</option>
+      <option value="phone">Phone</option>
+    </select>
+
+    <button class="btn" id="auto" aria-pressed="true">Auto-rotate</button>
+    <button class="btn" id="reset">Reset view</button>
+    <button class="btn" id="snap">Snapshot</button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

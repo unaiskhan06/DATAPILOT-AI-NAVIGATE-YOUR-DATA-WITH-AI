@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import time
 import uuid
+from pathlib import Path
 from urllib.parse import quote_plus, urlencode
 
 import requests
@@ -33,6 +35,7 @@ from flask import (
     session,
 )
 from flask_cors import CORS
+from PIL import Image, ImageOps
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import auth
@@ -45,6 +48,14 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
 IMAGES_DIR = os.path.join(os.path.dirname(BASE_DIR), "Images")
+SCREEN_UPLOAD_DIR = Path(BASE_DIR) / "uploads"
+SCREEN_UPLOAD_DIR.mkdir(exist_ok=True)
+MAX_SCREEN_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_SCREEN_DIMENSION = 2048
+MAX_STORED_SCREENS = 50
+SCREEN_FILE_RE = re.compile(r"^[a-f0-9]{32}\.(png|jpg)$")
+ALLOWED_SCREEN_FORMATS = {"PNG", "JPEG", "WEBP"}
+Image.MAX_IMAGE_PIXELS = 40_000_000
 
 app = Flask(__name__, static_folder=None)
 # Render (and Heroku, nginx, AWS ELB, ...) terminate TLS at a proxy and forward
@@ -365,8 +376,56 @@ def ai_status():
     return jsonify({"available": llm_agent.is_available()})
 
 
+def _stored_screens():
+    files = [
+        path
+        for path in SCREEN_UPLOAD_DIR.iterdir()
+        if SCREEN_FILE_RE.match(path.name)
+    ]
+    return sorted(files, key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def _prune_screens():
+    for old in _stored_screens()[MAX_STORED_SCREENS:]:
+        try:
+            old.unlink()
+        except OSError:
+            pass
+
+
 @app.route("/api/upload", methods=["POST"])
 def upload():
+    image_file = request.files.get("image")
+    if image_file is not None:
+        if image_file.filename == "":
+            return jsonify({"error": "No image provided."}), 400
+        if request.content_length and request.content_length > MAX_SCREEN_UPLOAD_BYTES:
+            return jsonify({"error": "Image is too large (max 10 MB)."}), 413
+
+        try:
+            probe = Image.open(image_file.stream)
+            if probe.format not in ALLOWED_SCREEN_FORMATS:
+                return jsonify({"error": "Only PNG, JPG or WEBP images are allowed."}), 400
+            probe.verify()
+
+            image_file.stream.seek(0)
+            img = ImageOps.exif_transpose(Image.open(image_file.stream))
+            img.thumbnail((MAX_SCREEN_DIMENSION, MAX_SCREEN_DIMENSION), Image.Resampling.LANCZOS)
+
+            has_alpha = img.mode in ("RGBA", "LA") or "transparency" in img.info
+            file_id = uuid.uuid4().hex
+            if has_alpha:
+                name = f"{file_id}.png"
+                img.convert("RGBA").save(SCREEN_UPLOAD_DIR / name, "PNG", optimize=True)
+            else:
+                name = f"{file_id}.jpg"
+                img.convert("RGB").save(SCREEN_UPLOAD_DIR / name, "JPEG", quality=90, optimize=True)
+        except Exception:
+            return jsonify({"error": "That file is not a valid image."}), 400
+
+        _prune_screens()
+        return jsonify({"id": name, "url": f"/uploads/{name}"}), 201
+
     login_err = _require_login()
     if login_err:
         return login_err
@@ -398,6 +457,38 @@ def upload():
             "profile": data_ops.profile(df),
         }
     )
+
+
+@app.route("/api/screens")
+def list_screens():
+    return jsonify(
+        {
+            "screens": [
+                {"id": path.name, "url": f"/uploads/{path.name}"}
+                for path in _stored_screens()[:24]
+            ]
+        }
+    )
+
+
+@app.route("/api/screens/<name>", methods=["DELETE"])
+def delete_screen(name):
+    if not SCREEN_FILE_RE.match(name):
+        return jsonify({"error": "Not found."}), 404
+    path = SCREEN_UPLOAD_DIR / name
+    if not path.exists():
+        return jsonify({"error": "Not found."}), 404
+    path.unlink()
+    return jsonify({"deleted": name})
+
+
+@app.route("/uploads/<name>")
+def serve_screen(name):
+    if not SCREEN_FILE_RE.match(name):
+        return jsonify({"error": "Not found."}), 404
+    if not (SCREEN_UPLOAD_DIR / name).is_file():
+        return jsonify({"error": "Not found."}), 404
+    return send_from_directory(str(SCREEN_UPLOAD_DIR), name, max_age=3600)
 
 
 @app.route("/api/add-sheet", methods=["POST"])
